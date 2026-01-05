@@ -176,10 +176,10 @@ func parseWithChromedp(url string) (*types.Manga, error) {
 	}, nil
 }
 
-func ParseMgekoManga(url string) (*types.Manga, error) {
+func MgekoParser(url string) (*types.Manga, error) {
 	info, err := parseWithColly(url)
 
-	if err == nil && len(info.Chapters) > 0 && info.Title != "" {
+	if err == nil {
 		fmt.Printf("Успех через Colly! %s → %s\n", info.Title, info.Chapters[0].Number)
 		return info, nil
 	}

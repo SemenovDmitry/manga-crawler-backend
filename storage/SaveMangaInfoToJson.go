@@ -82,7 +82,7 @@ func SaveMangaInfoToJson(manga *types.Manga, name string) {
 	// Успешно!
 	latest := "нет глав"
 	if len(manga.Chapters) > 0 {
-		latest = manga.Chapters[0].Number
+		latest = manga.Chapters[0].Title
 	}
 
 	fmt.Printf("Обновлено в БД: %s → глава %s\n", manga.Title, latest)

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SemenovDmitry/manga-crawler-backend/parsers"
+	"github.com/SemenovDmitry/manga-crawler-backend/sites/readmanga"
 	"github.com/SemenovDmitry/manga-crawler-backend/storage"
 )
 
@@ -24,7 +25,8 @@ func main() {
 }
 
 func checkMangaUpdates() {
-	ParseMgeko()
+	// ParseMgeko()
+	readmanga.ReadmangaCrawler()
 }
 
 var MangaList = []string{
@@ -41,7 +43,7 @@ func ParseMgeko() {
 	for i, mangaURL := range MangaList {
 		fmt.Printf("[%d/%d] Парсинг: %s\n", i+1, len(MangaList), mangaURL)
 
-		info, err := parsers.ParseMgekoManga(mangaURL)
+		info, err := parsers.MgekoParser(mangaURL)
 
 		if err != nil {
 			log.Printf("Ошибка при парсинге: %v\n\n", err)
@@ -56,7 +58,7 @@ func ParseMgeko() {
 		latest := info.Chapters[0] // ← всегда самая новая
 
 		fmt.Printf("Манга: %s\n", info.Title)
-		fmt.Printf("Последняя глава: %s\n", latest.Number)
+		// fmt.Printf("Последняя глава: %s\n", latest.Number)
 		fmt.Printf("Ссылка: %s\n\n", latest.URL)
 
 		storage.SaveMangaInfoToJson(info, "mgeko.json")
