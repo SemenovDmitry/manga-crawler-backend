@@ -1,9 +1,8 @@
 package types
 
 type Chapter struct {
-	Number string
-	Title  string
-	URL    string
+	Title string
+	URL   string
 }
 
 type Manga struct {

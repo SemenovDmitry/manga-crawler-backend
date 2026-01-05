@@ -61,17 +61,17 @@ func parseWithColly(url string) (*types.Manga, error) {
 
 		// Чистый номер главы (только первая строка из .chapter-number)
 		raw := element.ChildText(".chapter-number")
-		number := strings.Split(strings.TrimSpace(raw), "\n")[0]
-		number = strings.TrimSpace(number)
+		title := strings.Split(strings.TrimSpace(raw), "\n")[0]
+		title = strings.TrimSpace(title)
 
 		// Пропускаем пустые или битые элементы
-		if number == "" {
+		if title == "" {
 			return
 		}
 
 		chapter := types.Chapter{
-			Number: number,
-			URL:    link,
+			Title: title,
+			URL:   link,
 		}
 
 		// fmt.Printf("chapter: %+v\n", chapter)
@@ -149,8 +149,8 @@ func parseWithChromedp(url string) (*types.Manga, error) {
 	// Обрабатываем результат из JS
 	var processed []types.Chapter
 	for _, ch := range chapters {
-		number := strings.TrimSpace(strings.Split(ch.Number, "\n")[0])
-		if number == "" {
+		title := strings.TrimSpace(strings.Split(ch.Title, "\n")[0])
+		if title == "" {
 			continue
 		}
 
@@ -160,8 +160,8 @@ func parseWithChromedp(url string) (*types.Manga, error) {
 		}
 
 		processed = append(processed, types.Chapter{
-			Number: number,
-			URL:    link,
+			Title: title,
+			URL:   link,
 		})
 	}
 
@@ -180,7 +180,7 @@ func MgekoParser(url string) (*types.Manga, error) {
 	info, err := parseWithColly(url)
 
 	if err == nil {
-		fmt.Printf("Успех через Colly! %s → %s\n", info.Title, info.Chapters[0].Number)
+		fmt.Printf("Успех через Colly! %s → %s\n", info.Title, info.Chapters[0].Title)
 		return info, nil
 	}
 
@@ -192,6 +192,6 @@ func MgekoParser(url string) (*types.Manga, error) {
 		return nil, fmt.Errorf("оба парсера упали: %w", err)
 	}
 
-	fmt.Printf("Успех через chromedp! %s → %s\n", info.Title, info.Chapters[0].Number)
+	fmt.Printf("Успех через chromedp! %s → %s\n", info.Title, info.Chapters[0].Title)
 	return info, nil
 }
