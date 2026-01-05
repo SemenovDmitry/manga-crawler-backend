@@ -12,19 +12,53 @@ import (
 )
 
 var (
+	dbDir         = "mangasdb"
 	mangasDBMutex sync.RWMutex // защита от одновременной записи (если будет cron)
 )
 
-func SaveMangaInfoToJson(manga *types.Manga, name string) {
+func GetMangaByName(title string, filename string) (*types.Manga, error) {
+
+	filePath := filepath.Join(dbDir, filename)
+
+	// Блокируем на время чтения/записи
+	mangasDBMutex.Lock()
+	defer mangasDBMutex.Unlock()
+
+	// Читаем существующий файл (если есть)
+	data, err := os.ReadFile(filePath)
+	if err != nil && !os.IsNotExist(err) {
+		log.Printf("Ошибка чтения файла %s: %v", filePath, err)
+		return nil, err
+	}
+
+	// Если файла нет — создаём пустой массив
+	var mangas []types.Manga
+
+	if len(data) > 0 {
+		if jsonErr := json.Unmarshal(data, &mangas); jsonErr != nil {
+			log.Printf("Ошибка парсинга JSON: %v — будет создан новый файл", jsonErr)
+			mangas = []types.Manga{}
+		}
+	}
+
+	// Ищем, есть ли уже манга с таким Title
+	for i := range mangas {
+		if mangas[i].Title == title {
+			return &mangas[i], nil
+		}
+	}
+
+	// return nil, fmt.Errorf("Манга не найдена")
+	return nil, nil
+}
+
+func SaveMangaInfoToJson(manga *types.Manga, filename string) {
 	if manga == nil || manga.Title == "" {
 		log.Println("Ошибка: manga или Title пустой — не сохраняем")
 		return
 	}
 
-	var dbDir = "mangasdb"
-	var dbFile = name
-
-	filePath := filepath.Join(dbDir, dbFile)
+	filePath := filepath.Join(dbDir, filename)
 
 	// Создаём папку, если нет
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
