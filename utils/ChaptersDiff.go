@@ -1,6 +1,8 @@
 package utils
 
-import "github.com/SemenovDmitry/manga-crawler-backend/types"
+import (
+	"github.com/SemenovDmitry/manga-crawler-backend/types"
+)
 
 func ChaptersDiff(a []types.Chapter, b []types.Chapter) []types.Chapter {
 	// Если массив a пустой - нет различий

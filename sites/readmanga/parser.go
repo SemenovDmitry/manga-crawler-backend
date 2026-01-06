@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/SemenovDmitry/manga-crawler-backend/storage"
+	"github.com/SemenovDmitry/manga-crawler-backend/telegram"
+	"github.com/SemenovDmitry/manga-crawler-backend/types"
 	"github.com/SemenovDmitry/manga-crawler-backend/utils"
 )
 
@@ -15,9 +17,16 @@ var mangaList = []string{
 	"kak_vyjit_geniiu__ogranichennomu_vo_vremeni",
 	"absoliutnaia_regressiia",
 	"gatiakuta",
+	"asura_2024",
+	"bashnia_podzemelia",
+	"da__ia_pauk__i_chto_s_togo_",
+	"pesn_o_nebesnyh_strannikah",
+	"praviachii_mirom",
+	"ugroza_v_moem_serdce",
+	"friren__provojaiuchaia_v_poslednii_put",
 }
 
-func ReadmangaCrawler() error {
+func ReadmangaCrawler(telegramBot *telegram.TelegramBot) error {
 	log.Println("Начало проверки обновлений манги...")
 
 	for index, mangaName := range mangaList {
@@ -52,13 +61,17 @@ func ReadmangaCrawler() error {
 
 		if savedManga == nil {
 			storage.SaveMangaInfoToJson(transformedFeed, "readmanga.json")
-			continue
 		}
 
-		diff := utils.ChaptersDiff(transformedFeed.Chapters, savedManga.Chapters)
+		var diff []types.Chapter
+		if savedManga != nil {
+			diff = utils.ChaptersDiff(transformedFeed.Chapters, savedManga.Chapters)
+		} else {
+			diff = transformedFeed.Chapters
+		}
 
 		if diff != nil {
-			log.Printf("telegram notify diff: %v", diff)
+			telegramBot.SendMangaUpdate(transformedFeed, diff)
 		}
 
 		// Ждём 4 секунды перед следующей мангой (чтобы не получить бан)
@@ -66,14 +79,6 @@ func ReadmangaCrawler() error {
 			fmt.Println("Ожидание 4 секунды...")
 			time.Sleep(4 * time.Second)
 		}
-
-		// for i := 0; i < limit; i++ {
-		// 	item := feed.Items[i]
-
-		// 	fmt.Printf("Заголовок: %s\n", strings.TrimSpace(item.Title))
-		// 	fmt.Printf("  Ссылка: %s\n\n", item.Link)
-		// }
-
 	}
 
 	log.Println("Проверка обновлений завершена")

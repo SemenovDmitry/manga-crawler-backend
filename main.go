@@ -8,25 +8,28 @@ import (
 	"github.com/SemenovDmitry/manga-crawler-backend/parsers"
 	"github.com/SemenovDmitry/manga-crawler-backend/sites/readmanga"
 	"github.com/SemenovDmitry/manga-crawler-backend/storage"
+	"github.com/SemenovDmitry/manga-crawler-backend/telegram"
 )
 
 func main() {
-	checkMangaUpdates()
+	tgbot := telegram.InitTelegramBot()
 
-	ticker := time.NewTicker(1 * time.Minute)
+	checkMangaUpdates(tgbot)
+
+	ticker := time.NewTicker(10 * time.Minute)
 
 	defer ticker.Stop()
 
 	log.Println("Manga tracker запущен. Проверка каждую минуту...")
 
 	for range ticker.C {
-		checkMangaUpdates()
+		checkMangaUpdates(tgbot)
 	}
 }
 
-func checkMangaUpdates() {
+func checkMangaUpdates(telegramBot *telegram.TelegramBot) {
 	// ParseMgeko()
-	readmanga.ReadmangaCrawler()
+	readmanga.ReadmangaCrawler(telegramBot)
 }
 
 var MangaList = []string{
