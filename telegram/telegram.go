@@ -127,7 +127,7 @@ func (bot *TelegramBot) SendMessage(text string) error {
 	return nil
 }
 
-func (bot *TelegramBot) SendMangaUpdate(manga *types.Manga, newChapters []types.Chapter) error {
+func (bot *TelegramBot) SendMangaUpdate(sourceUrl string, manga *types.Manga, newChapters []types.Chapter) error {
 	if !bot.Enabled || len(newChapters) == 0 {
 		return nil
 	}
@@ -135,14 +135,13 @@ func (bot *TelegramBot) SendMangaUpdate(manga *types.Manga, newChapters []types.
 	var message strings.Builder
 
 	// Заголовок
-	message.WriteString(fmt.Sprintf("<b>Манга:</b> %s\n", escapeHTML(manga.Title)))
-	message.WriteString(fmt.Sprintf("<b>Ссылка:</b> <a href=\"%s\">Открыть мангу</a>\n\n", manga.Url))
+	message.WriteString(fmt.Sprintf("%s\n\n", sourceUrl))
 
-	// Список новых глав
-	message.WriteString("<b>Новые главы:</b>\n")
-	for i, chapter := range newChapters {
-		message.WriteString(fmt.Sprintf("%d. <a href=\"%s\">%s</a>\n",
-			i+1, chapter.URL, escapeHTML(chapter.Title)))
+	if len(newChapters) > 1 {
+		message.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a>\n\n", manga.Url, escapeHTML(manga.Title)))
+		message.WriteString(fmt.Sprintf("<b>Новые главы: %d</b>", len(newChapters)))
+	} else {
+		message.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a>\n\n", newChapters[0].URL, newChapters[0].Title))
 	}
 
 	// Отправляем сообщение с ОТКЛЮЧЕННЫМ превью
@@ -223,6 +222,17 @@ func (bot *TelegramBot) SendStartupNotification() error {
 
 	message := "🚀 <b>Манга-трекер запущен!</b>\n\n" +
 		"<i>Начинаю отслеживание обновлений...</i>"
+
+	return bot.SendMessage(message)
+}
+
+// Уведомление о запуске системы
+func (bot *TelegramBot) SendErrorNotification(mangaName string) error {
+	if !bot.Enabled {
+		return nil
+	}
+
+	message := fmt.Sprintf("🚨 <b>Ошибка парсинга RSS ленты - %s</b>\n", mangaName)
 
 	return bot.SendMessage(message)
 }

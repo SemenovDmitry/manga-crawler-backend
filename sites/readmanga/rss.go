@@ -8,6 +8,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/SemenovDmitry/manga-crawler-backend/types"
@@ -32,7 +35,18 @@ func decompressBody(body []byte) ([]byte, error) {
 	return decompressed, nil
 }
 
-func getRSSHeaders() http.Header {
+func getClientHeaders(baseUrl string) http.Header {
+	return http.Header{
+		"User-Agent":      {utils.GetRandomUserAgent()},
+		"Accept":          {"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+		"Accept-Language": {"ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"},
+		"Accept-Encoding": {"gzip, deflate"},
+		"Referer":         {baseUrl + "/"},
+		"Connection":      {"keep-alive"},
+	}
+}
+
+func getRSSHeaders(baseUrl string) http.Header {
 	return http.Header{
 		"User-Agent":      {utils.GetRandomUserAgent()},
 		"Accept":          {"application/xml,text/xml,application/rss+xml"},
@@ -43,9 +57,142 @@ func getRSSHeaders() http.Header {
 	}
 }
 
-func getRSSFeed(mangaName string) (types.Channel, error) {
+func findRSSLink(baseUrl, mangaName string) (string, error) {
+	// Формируем URL страницы манги
+	mangaUrl := fmt.Sprintf("%s/%s", baseUrl, mangaName)
+
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:          10,
+			IdleConnTimeout:       60 * time.Second,
+			DisableCompression:    false,
+			DisableKeepAlives:     false,
+			MaxIdleConnsPerHost:   10,
+			TLSHandshakeTimeout:   15 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
+			ExpectContinueTimeout: 5 * time.Second,
+		},
+	}
+
+	req, err := http.NewRequest("GET", mangaUrl, nil)
+	if err != nil {
+		return "", fmt.Errorf("ошибка создания запроса: %v", err)
+	}
+
+	req.Header = getClientHeaders(baseUrl)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("ошибка запроса страницы: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("статус ошибки: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	// Читаем и декомпрессируем тело
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("ошибка чтения ответа: %v", err)
+	}
+
+	decompressedBody, err := decompressBody(body)
+	if err != nil {
+		log.Printf("Ошибка декомпрессии: %v", err)
+		decompressedBody = body
+	}
+
+	// Ищем RSS ссылку в HTML
+	htmlContent := string(decompressedBody)
+
+	// Паттерн для поиска RSS ссылок
+	patterns := []*regexp.Regexp{
+		// Ищем <link> с атрибутом title="RSS"
+		regexp.MustCompile(`<link[^>]*title=["']?RSS["']?[^>]*href=["']?([^"'\s>]+)["']?`),
+		// Ищем <link> с type="application/rss+xml"
+		regexp.MustCompile(`<link[^>]*type=["']?application/rss\+xml["']?[^>]*href=["']?([^"'\s>]+)["']?`),
+		// Ищем <link> с rel="alternate" и type содержит rss
+		regexp.MustCompile(`<link[^>]*rel=["']?alternate["']?[^>]*type=["']?application/rss\+xml["']?[^>]*href=["']?([^"'\s>]+)["']?`),
+		// Ищем <a> с RSS в тексте или href
+		regexp.MustCompile(`<a[^>]*href=["']?([^"'\s>]*rss[^"'\s>]*)["']?[^>]*>.*?RSS.*?</a>`),
+	}
+
+	var rssLink string
+
+	for _, pattern := range patterns {
+		matches := pattern.FindStringSubmatch(htmlContent)
+		if len(matches) > 1 {
+			rssLink = matches[1]
+
+			// Если ссылка относительная, делаем её абсолютной
+			if !strings.HasPrefix(rssLink, "http") {
+				parsedBaseUrl, err := url.Parse(baseUrl)
+				if err != nil {
+					return rssLink, nil
+				}
+
+				parsedRssLink, err := url.Parse(rssLink)
+				if err != nil {
+					return rssLink, nil
+				}
+
+				rssLink = parsedBaseUrl.ResolveReference(parsedRssLink).String()
+			}
+
+			log.Printf("Найдена RSS ссылка для %s: %s", mangaName, rssLink)
+			return rssLink, nil
+		}
+	}
+
+	// // Если не нашли через регулярки, пытаемся найти в head
+	// headStart := strings.Index(htmlContent, "<head")
+	// if headStart != -1 {
+	// 	headEnd := strings.Index(htmlContent, "</head>")
+	// 	if headEnd != -1 {
+	// 		headSection := htmlContent[headStart:headEnd]
+
+	// 		// Ищем ссылку на RSS в head
+	// 		rssPattern := regexp.MustCompile(`href=["']?([^"'\s>]*rss[^"'\s>]*)["']?`)
+	// 		matches := rssPattern.FindAllStringSubmatch(headSection, -1)
+
+	// 		for _, match := range matches {
+	// 			if len(match) > 1 && strings.Contains(strings.ToLower(match[1]), "rss") {
+	// 				rssLink := match[1]
+
+	// 				// Если ссылка относительная, делаем её абсолютной
+	// 				if !strings.HasPrefix(rssLink, "http") {
+	// 					parsedBaseUrl, err := url.Parse(baseUrl)
+	// 					if err != nil {
+	// 						return rssLink, nil
+	// 					}
+
+	// 					parsedRssLink, err := url.Parse(rssLink)
+	// 					if err != nil {
+	// 						return rssLink, nil
+	// 					}
+
+	// 					rssLink = parsedBaseUrl.ResolveReference(parsedRssLink).String()
+	// 				}
+
+	// 				log.Printf("Найдена RSS ссылка в head для %s: %s", mangaName, rssLink)
+	// 				return rssLink, nil
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	if rssLink == "" {
+		return "", fmt.Errorf("RSS ссылка не найдена для %s", mangaName)
+	}
+
+	return rssLink, nil
+}
+
+func getRSSFeed(baseUrl string) (types.Channel, error) {
 	var channel types.Channel
-	url := fmt.Sprintf("%s/rss/manga?name=%s", baseUrl, mangaName)
+	url := baseUrl
 
 	client := &http.Client{
 		Timeout: 60 * time.Second,
@@ -67,7 +214,7 @@ func getRSSFeed(mangaName string) (types.Channel, error) {
 	}
 
 	// Важные заголовки
-	req.Header = getRSSHeaders()
+	req.Header = getRSSHeaders(baseUrl)
 
 	resp, err := client.Do(req)
 	if err != nil {

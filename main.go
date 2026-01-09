@@ -16,11 +16,11 @@ func main() {
 
 	checkMangaUpdates(tgbot)
 
-	ticker := time.NewTicker(10 * time.Minute)
+	ticker := time.NewTicker(15 * time.Minute)
 
 	defer ticker.Stop()
 
-	log.Println("Manga tracker запущен. Проверка каждую минуту...")
+	log.Println("Manga tracker запущен. Проверка каждst 15 минут...")
 
 	for range ticker.C {
 		checkMangaUpdates(tgbot)
