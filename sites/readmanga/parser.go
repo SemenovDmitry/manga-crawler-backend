@@ -43,7 +43,7 @@ var mintList = []string{
 }
 
 func ParseSourse(telegramBot *telegram.TelegramBot, sourceUrl string, checkList []string) error {
-	log.Println("Начало проверки обновлений манги...")
+	log.Printf("Начало проверки обновлений манги...\n\n")
 
 	for index, mangaName := range checkList {
 		log.Printf("Проверяем мангу: %s", mangaName)
@@ -68,7 +68,7 @@ func ParseSourse(telegramBot *telegram.TelegramBot, sourceUrl string, checkList 
 			continue
 		}
 
-		fmt.Printf("Найдено глав: %d\n\n", len(feed.Items))
+		// fmt.Printf("Найдено глав: %d\n\n", len(feed.Items))
 
 		transformedFeed, err := utils.TransformRSSFeed(feed)
 		if err != nil {
@@ -92,6 +92,8 @@ func ParseSourse(telegramBot *telegram.TelegramBot, sourceUrl string, checkList 
 		} else {
 			diff = transformedFeed.Chapters
 		}
+
+		fmt.Printf("Новых глав: %d\n\n", len(diff))
 
 		if diff != nil {
 			telegramBot.SendMangaUpdate(sourceUrl, transformedFeed, diff)

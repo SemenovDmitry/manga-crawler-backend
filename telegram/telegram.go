@@ -138,7 +138,7 @@ func (bot *TelegramBot) SendMangaUpdate(sourceUrl string, manga *types.Manga, ne
 	message.WriteString(fmt.Sprintf("%s\n\n", sourceUrl))
 
 	if len(newChapters) > 1 {
-		message.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a>\n\n", manga.Url, escapeHTML(manga.Title)))
+		message.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a>\n", manga.Url, escapeHTML(manga.Title)))
 		message.WriteString(fmt.Sprintf("<b>Новые главы: %d</b>", len(newChapters)))
 	} else {
 		message.WriteString(fmt.Sprintf("<a href=\"%s\">%s</a>\n\n", newChapters[0].URL, newChapters[0].Title))
