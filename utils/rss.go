@@ -1,8 +1,7 @@
-package readmanga
+package utils
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -14,50 +13,9 @@ import (
 	"time"
 
 	"github.com/SemenovDmitry/manga-crawler-backend/types"
-	"github.com/SemenovDmitry/manga-crawler-backend/utils"
 )
 
-// Функция для декомпрессии gzip
-func decompressBody(body []byte) ([]byte, error) {
-	// Пробуем распаковать как gzip
-	reader, err := gzip.NewReader(bytes.NewReader(body))
-	if err != nil {
-		// Если не gzip, возвращаем как есть
-		return body, nil
-	}
-	defer reader.Close()
-
-	decompressed, err := io.ReadAll(reader)
-	if err != nil {
-		return body, nil
-	}
-
-	return decompressed, nil
-}
-
-func getClientHeaders(baseUrl string) http.Header {
-	return http.Header{
-		"User-Agent":      {utils.GetRandomUserAgent()},
-		"Accept":          {"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
-		"Accept-Language": {"ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"},
-		"Accept-Encoding": {"gzip, deflate"},
-		"Referer":         {baseUrl + "/"},
-		"Connection":      {"keep-alive"},
-	}
-}
-
-func getRSSHeaders(baseUrl string) http.Header {
-	return http.Header{
-		"User-Agent":      {utils.GetRandomUserAgent()},
-		"Accept":          {"application/xml,text/xml,application/rss+xml"},
-		"Accept-Language": {"ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"},
-		"Accept-Encoding": {"gzip, deflate"}, // Разрешаем сжатие
-		"Referer":         {baseUrl + "/"},
-		"Connection":      {"keep-alive"},
-	}
-}
-
-func findRSSLink(baseUrl, mangaName string) (string, error) {
+func FindRSSLink(baseUrl, mangaName string) (string, error) {
 	// Формируем URL страницы манги
 	mangaUrl := fmt.Sprintf("%s/%s", baseUrl, mangaName)
 
@@ -80,7 +38,7 @@ func findRSSLink(baseUrl, mangaName string) (string, error) {
 		return "", fmt.Errorf("ошибка создания запроса: %v", err)
 	}
 
-	req.Header = getClientHeaders(baseUrl)
+	req.Header = GetClientHeaders(baseUrl)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -98,7 +56,7 @@ func findRSSLink(baseUrl, mangaName string) (string, error) {
 		return "", fmt.Errorf("ошибка чтения ответа: %v", err)
 	}
 
-	decompressedBody, err := decompressBody(body)
+	decompressedBody, err := DecompressGzipBody(body)
 	if err != nil {
 		log.Printf("Ошибка декомпрессии: %v", err)
 		decompressedBody = body
@@ -146,42 +104,46 @@ func findRSSLink(baseUrl, mangaName string) (string, error) {
 		}
 	}
 
-	// // Если не нашли через регулярки, пытаемся найти в head
-	// headStart := strings.Index(htmlContent, "<head")
-	// if headStart != -1 {
-	// 	headEnd := strings.Index(htmlContent, "</head>")
-	// 	if headEnd != -1 {
-	// 		headSection := htmlContent[headStart:headEnd]
+	if rssLink != "" {
+		return rssLink, nil
+	}
 
-	// 		// Ищем ссылку на RSS в head
-	// 		rssPattern := regexp.MustCompile(`href=["']?([^"'\s>]*rss[^"'\s>]*)["']?`)
-	// 		matches := rssPattern.FindAllStringSubmatch(headSection, -1)
+	// Если не нашли через регулярки, пытаемся найти в head
+	headStart := strings.Index(htmlContent, "<head")
+	if headStart != -1 {
+		headEnd := strings.Index(htmlContent, "</head>")
+		if headEnd != -1 {
+			headSection := htmlContent[headStart:headEnd]
 
-	// 		for _, match := range matches {
-	// 			if len(match) > 1 && strings.Contains(strings.ToLower(match[1]), "rss") {
-	// 				rssLink := match[1]
+			// Ищем ссылку на RSS в head
+			rssPattern := regexp.MustCompile(`href=["']?([^"'\s>]*rss[^"'\s>]*)["']?`)
+			matches := rssPattern.FindAllStringSubmatch(headSection, -1)
 
-	// 				// Если ссылка относительная, делаем её абсолютной
-	// 				if !strings.HasPrefix(rssLink, "http") {
-	// 					parsedBaseUrl, err := url.Parse(baseUrl)
-	// 					if err != nil {
-	// 						return rssLink, nil
-	// 					}
+			for _, match := range matches {
+				if len(match) > 1 && strings.Contains(strings.ToLower(match[1]), "rss") {
+					rssLink := match[1]
 
-	// 					parsedRssLink, err := url.Parse(rssLink)
-	// 					if err != nil {
-	// 						return rssLink, nil
-	// 					}
+					// Если ссылка относительная, делаем её абсолютной
+					if !strings.HasPrefix(rssLink, "http") {
+						parsedBaseUrl, err := url.Parse(baseUrl)
+						if err != nil {
+							return rssLink, nil
+						}
 
-	// 					rssLink = parsedBaseUrl.ResolveReference(parsedRssLink).String()
-	// 				}
+						parsedRssLink, err := url.Parse(rssLink)
+						if err != nil {
+							return rssLink, nil
+						}
 
-	// 				log.Printf("Найдена RSS ссылка в head для %s: %s", mangaName, rssLink)
-	// 				return rssLink, nil
-	// 			}
-	// 		}
-	// 	}
-	// }
+						rssLink = parsedBaseUrl.ResolveReference(parsedRssLink).String()
+					}
+
+					log.Printf("Найдена RSS ссылка в head для %s: %s", mangaName, rssLink)
+					return rssLink, nil
+				}
+			}
+		}
+	}
 
 	if rssLink == "" {
 		return "", fmt.Errorf("RSS ссылка не найдена для %s", mangaName)
@@ -190,7 +152,7 @@ func findRSSLink(baseUrl, mangaName string) (string, error) {
 	return rssLink, nil
 }
 
-func getRSSFeed(baseUrl string) (types.Channel, error) {
+func GetRSSFeed(baseUrl string) (types.Channel, error) {
 	var channel types.Channel
 	url := baseUrl
 
@@ -214,7 +176,7 @@ func getRSSFeed(baseUrl string) (types.Channel, error) {
 	}
 
 	// Важные заголовки
-	req.Header = getRSSHeaders(baseUrl)
+	req.Header = GetRSSHeaders(baseUrl)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -233,7 +195,7 @@ func getRSSFeed(baseUrl string) (types.Channel, error) {
 	}
 
 	// Декомпрессируем если нужно
-	decompressedBody, err := decompressBody(body)
+	decompressedBody, err := DecompressGzipBody(body)
 	if err != nil {
 		log.Printf("Ошибка декомпрессии: %v", err)
 		decompressedBody = body
@@ -262,4 +224,39 @@ func getRSSFeed(baseUrl string) (types.Channel, error) {
 	}
 
 	return rss.Channel, nil
+}
+
+func TransformRSSFeed(feed types.Channel) (*types.Manga, error) {
+	manga := &types.Manga{
+		Title:    feed.Title,
+		URL:      feed.Link,
+		Chapters: make([]types.Chapter, 10),
+	}
+
+	if len(feed.Items) == 0 {
+		return manga, nil
+	}
+
+	filteredItems := feed.Items[:min(len(feed.Items), 10)]
+
+	for i, item := range filteredItems {
+		manga.Chapters[i] = types.Chapter{
+			Title: item.Title,
+			URL:   item.Link,
+		}
+	}
+
+	return manga, nil
+}
+
+// GetRSSHeaders возвращает заголовки для запросов RSS
+func GetRSSHeaders(baseUrl string) http.Header {
+	return http.Header{
+		"User-Agent":      {GetRandomUserAgent()},
+		"Accept":          {"application/xml,text/xml,application/rss+xml"},
+		"Accept-Language": {"ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"},
+		"Accept-Encoding": {"gzip, deflate"},
+		"Referer":         {baseUrl + "/"},
+		"Connection":      {"keep-alive"},
+	}
 }

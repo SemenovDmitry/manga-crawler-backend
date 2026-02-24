@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+FROM golang:1.24.5-alpine as builder
+WORKDIR /app
+COPY . .
+RUN go mod download
+RUN go build -o manga-crawler-backend main.go
+
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/manga-crawler-backend .
+COPY . .
+EXPOSE 8080
+ENV TZ=Etc/GMT
+CMD ["./manga-crawler-backend"]

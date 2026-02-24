@@ -1,0 +1,95 @@
+package storage
+
+import (
+	"fmt"
+
+	"github.com/SemenovDmitry/manga-crawler-backend/types"
+)
+
+// GetChaptersByMangaID возвращает все главы манги
+func GetChaptersByMangaID(mangaID int) ([]types.Chapter, error) {
+	db := GetDB()
+
+	query := `
+		SELECT id, manga_id, url, title, discovered_at 
+		FROM chapters 
+		WHERE manga_id = $1
+		ORDER BY discovered_at DESC
+	`
+
+	rows, err := db.Query(query, mangaID)
+
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса глав: %w", err)
+	}
+
+	defer rows.Close()
+
+	var chapters []types.Chapter
+	for rows.Next() {
+		var c types.Chapter
+		err := rows.Scan(&c.ID, &c.MangaID, &c.URL, &c.Title, &c.DiscoveredAt)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка сканирования главы: %w", err)
+		}
+		chapters = append(chapters, c)
+	}
+
+	return chapters, nil
+}
+
+// CreateChapter создаёт новую главу
+func CreateChapter(mangaID int, url, title string) (*types.Chapter, error) {
+	db := GetDB()
+
+	query := `
+		INSERT INTO chapters (manga_id, url, title) 
+		VALUES ($1, $2, $3)
+		ON CONFLICT (manga_id, url) DO NOTHING
+		RETURNING id, manga_id, url, title, discovered_at
+	`
+
+	var c types.Chapter
+
+	err := db.QueryRow(query, mangaID, url, title).Scan(&c.ID, &c.MangaID, &c.URL, &c.Title, &c.DiscoveredAt)
+
+	if err != nil {
+		// Если ON CONFLICT сработал, глава уже существует — не ошибка
+		return nil, nil
+	}
+
+	return &c, nil
+}
+
+// CreateChapters создаёт несколько глав и возвращает только новые
+func CreateChapters(mangaID int, chapters []types.Chapter) ([]types.Chapter, error) {
+	var newChapters []types.Chapter
+
+	for _, ch := range chapters {
+		created, err := CreateChapter(mangaID, ch.URL, ch.Title)
+		if err != nil {
+			return nil, err
+		}
+		if created != nil {
+			newChapters = append(newChapters, *created)
+		}
+	}
+
+	return newChapters, nil
+}
+
+// ChapterExists проверяет существование главы
+func ChapterExists(mangaID int, url string) (bool, error) {
+	db := GetDB()
+
+	var exists bool
+	err := db.QueryRow(`
+		SELECT EXISTS(SELECT 1 FROM chapters WHERE manga_id = $1 AND url = $2)
+	`, mangaID, url).Scan(&exists)
+
+	if err != nil {
+		return false, fmt.Errorf("ошибка проверки главы: %w", err)
+	}
+
+	return exists, nil
+}

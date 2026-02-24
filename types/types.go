@@ -2,17 +2,6 @@ package types
 
 import "encoding/xml"
 
-type Chapter struct {
-	Title string
-	URL   string
-}
-
-type Manga struct {
-	Title    string
-	Url      string
-	Chapters []Chapter
-}
-
 // RSS структуры
 type RSS struct {
 	XMLName xml.Name `xml:"rss"`
