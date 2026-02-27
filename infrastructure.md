@@ -97,10 +97,10 @@ docker stats
 
 ```bash
 # Подключиться к БД
-docker exec -it postgres-db psql -U mangauser -d mangadb
+docker exec -it manga-crawler-db psql -U mangauser -d mangadb
 
 # Выполнить SQL команду
-docker exec -it postgres-db psql -U mangauser -d mangadb -c "SELECT * FROM sources;"
+docker exec -it manga-crawler-db psql -U mangauser -d mangadb -c "SELECT * FROM sources;"
 ```
 
 ### Полезные SQL команды
@@ -137,7 +137,7 @@ docker-compose down -v
 docker-compose up -d
 
 # Или очистить таблицы вручную
-docker exec -it postgres-db psql -U mangauser -d mangadb -c "
+docker exec -it manga-crawler-db psql -U mangauser -d mangadb -c "
 DROP TABLE IF EXISTS chapters CASCADE;
 DROP TABLE IF EXISTS user_subscriptions CASCADE;
 DROP TABLE IF EXISTS manga CASCADE;
@@ -226,7 +226,7 @@ docker-compose ps
 docker-compose logs -f manga-crawler-backend
 
 # Проверить что БД инициализирована
-docker exec -it postgres-db psql -U mangauser -d mangadb -c "\dt"
+docker exec -it manga-crawler-db psql -U mangauser -d mangadb -c "\dt"
 ```
 
 ---
@@ -237,7 +237,7 @@ docker exec -it postgres-db psql -U mangauser -d mangadb -c "\dt"
 
 ```bash
 # Ошибка: container name is already in use
-docker rm postgres-db
+docker rm manga-crawler-db
 docker-compose up -d
 ```
 
@@ -265,7 +265,7 @@ netstat -ano | findstr :5432
 docker-compose ps
 
 # Проверить подключение
-docker exec -it postgres-db pg_isready -U mangauser -d mangadb
+docker exec -it manga-crawler-db pg_isready -U mangauser -d mangadb
 
 # Посмотреть логи БД
 docker-compose logs manga-crawler-db
@@ -275,7 +275,7 @@ docker-compose logs manga-crawler-db
 
 ```bash
 # Проверить таблицу миграций
-docker exec -it postgres-db psql -U mangauser -d mangadb -c "SELECT * FROM goose_db_version;"
+docker exec -it manga-crawler-db psql -U mangauser -d mangadb -c "SELECT * FROM goose_db_version;"
 
 # Перезапустить приложение
 docker-compose restart manga-crawler-backend
