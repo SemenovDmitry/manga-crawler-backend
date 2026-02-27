@@ -107,11 +107,10 @@ func handleSources(bot *TelegramBot, chatID int64) {
 	sb.WriteString(fmt.Sprintf("🌐 <b>Поддерживаемые источники (%d):</b>\n\n", len(sources)))
 
 	for i, source := range sources {
-		sb.WriteString(fmt.Sprintf("%d. <b>%s</b>\n", i+1, source.ParserName))
-		sb.WriteString(fmt.Sprintf("   🔗 %s\n\n", source.BaseURL))
+		sb.WriteString(fmt.Sprintf("%d. <b>%s</b> — %s\n", i+1, source.ParserName, source.BaseURL))
 	}
 
-	sb.WriteString("<b>Как добавить мангу:</b>\n")
+	sb.WriteString("\n<b>Как добавить мангу:</b>\n")
 	sb.WriteString("Скопируйте URL страницы манги и отправьте его боту.\n")
 	sb.WriteString("Или используйте команду /add URL")
 
@@ -121,6 +120,7 @@ func handleSources(bot *TelegramBot, chatID int64) {
 // handleList обработка команды /list
 func handleList(bot *TelegramBot, chatID int64, userID int64) {
 	mangaList, err := storage.GetUserSubscriptions(userID)
+
 	if err != nil {
 		log.Printf("Ошибка получения подписок: %v", err)
 		sendMessageToChat(bot, chatID, "❌ Ошибка получения списка манги")
@@ -133,12 +133,29 @@ func handleList(bot *TelegramBot, chatID int64, userID int64) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("📚 <b>Ваши манги (%d):</b>\n\n", len(mangaList)))
+	sb.WriteString(fmt.Sprintf("📚 <b>Ваши манги (%d):</b>\n", len(mangaList)))
 
-	for i, manga := range mangaList {
-		sb.WriteString(fmt.Sprintf("%d. <b>%s</b>\n", i+1, escapeHTML(manga.Title)))
-		if manga.LastChapterTitle != "" {
-			sb.WriteString(fmt.Sprintf("   └ Последняя глава: %s\n", escapeHTML(manga.LastChapterTitle)))
+	// Группируем манги по источнику
+	grouped := make(map[string][]storage.MangaWithSource)
+	var sourceOrder []string
+
+	for _, manga := range mangaList {
+		if _, exists := grouped[manga.SourceName]; !exists {
+			sourceOrder = append(sourceOrder, manga.SourceName)
+		}
+		grouped[manga.SourceName] = append(grouped[manga.SourceName], manga)
+	}
+
+	// Выводим по источникам
+	for _, sourceName := range sourceOrder {
+		mangas := grouped[sourceName]
+		sb.WriteString(fmt.Sprintf("\n🌐 <b>%s</b> (%d):\n", escapeHTML(sourceName), len(mangas)))
+		for i, manga := range mangas {
+			if manga.LastChapterTitle != "" && manga.LastChapterURL != "" {
+				sb.WriteString(fmt.Sprintf("%d. <a href=\"%s\">%s</a>\n", i+1, manga.LastChapterURL, escapeHTML(manga.LastChapterTitle)))
+			} else {
+				sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, escapeHTML(manga.Title)))
+			}
 		}
 	}
 

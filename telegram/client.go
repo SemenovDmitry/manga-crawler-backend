@@ -51,7 +51,7 @@ func createTelegramBot(token, chatID string) *TelegramBot {
 		Token:  token,
 		ChatID: chatID,
 		Client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second,
 		},
 		BotURL:  fmt.Sprintf("https://api.telegram.org/bot%s", token),
 		Enabled: true,

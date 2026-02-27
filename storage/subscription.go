@@ -63,29 +63,39 @@ func DeleteSubscription(userID int64, mangaID int) error {
 	return nil
 }
 
-// GetUserSubscriptions возвращает все подписки пользователя
-func GetUserSubscriptions(userID int64) ([]types.Manga, error) {
+// MangaWithSource манга с информацией об источнике
+type MangaWithSource struct {
+	types.Manga
+	SourceName    string `db:"source_name"`
+	SourceBaseURL string `db:"source_base_url"`
+}
+
+// GetUserSubscriptions возвращает все подписки пользователя с информацией об источнике
+func GetUserSubscriptions(userID int64) ([]MangaWithSource, error) {
 	db := GetDB()
 
 	rows, err := db.Query(`
-		SELECT m.id, m.source_id, m.url, m.title, m.last_chapter_url, m.last_chapter_title, m.last_check_at, m.created_at, m.updated_at
+		SELECT m.id, m.source_id, m.url, m.title, m.last_chapter_url, m.last_chapter_title, m.last_check_at, m.created_at, m.updated_at,
+		       s.parser_name, s.base_url
 		FROM manga m
 		JOIN user_subscriptions us ON m.id = us.manga_id
+		JOIN sources s ON m.source_id = s.id
 		WHERE us.user_id = $1 AND us.notify = true
-		ORDER BY m.title
+		ORDER BY s.parser_name, m.title
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса подписок: %w", err)
 	}
 	defer rows.Close()
 
-	var mangaList []types.Manga
+	var mangaList []MangaWithSource
 	for rows.Next() {
-		var m types.Manga
+		var m MangaWithSource
 		var lastChapterURL, lastChapterTitle sql.NullString
 		var lastCheckAt sql.NullTime
 
-		err := rows.Scan(&m.ID, &m.SourceID, &m.URL, &m.Title, &lastChapterURL, &lastChapterTitle, &lastCheckAt, &m.CreatedAt, &m.UpdatedAt)
+		err := rows.Scan(&m.ID, &m.SourceID, &m.URL, &m.Title, &lastChapterURL, &lastChapterTitle, &lastCheckAt, &m.CreatedAt, &m.UpdatedAt,
+			&m.SourceName, &m.SourceBaseURL)
 		if err != nil {
 			return nil, fmt.Errorf("ошибка сканирования манги: %w", err)
 		}
