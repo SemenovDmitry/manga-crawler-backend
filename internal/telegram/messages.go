@@ -8,7 +8,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 // SendMessage отправка простого текстового сообщения

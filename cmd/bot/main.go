@@ -4,18 +4,18 @@ import (
 	"log"
 	"time"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/parsers"
-	"github.com/SemenovDmitry/manga-crawler-backend/storage"
-	"github.com/SemenovDmitry/manga-crawler-backend/telegram"
+	"github.com/SemenovDmitry/manga-crawler-backend/db"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/parsers"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/telegram"
 )
 
 func main() {
 	// Инициализируем подключение к БД
-	_ = storage.GetDB()
-	defer storage.CloseDB()
+	_ = db.GetDB()
+	defer db.CloseDB()
 
 	// Запускаем миграции
-	if err := storage.RunMigrations(); err != nil {
+	if err := db.RunMigrations(); err != nil {
 		log.Fatalf("Ошибка миграций: %v", err)
 	}
 
@@ -40,7 +40,7 @@ func main() {
 }
 
 func checkMangaUpdates(telegramBot *telegram.TelegramBot) {
-	sources, err := storage.GetActiveSources()
+	sources, err := db.GetActiveSources()
 	if err != nil {
 		log.Printf("Ошибка получения источников: %v", err)
 		return
@@ -54,7 +54,7 @@ func checkMangaUpdates(telegramBot *telegram.TelegramBot) {
 	log.Printf("Найдено %d активных источников", len(sources))
 
 	for _, source := range sources {
-		mangaList, err := storage.GetMangaBySourceID(source.ID)
+		mangaList, err := db.GetMangaBySourceID(source.ID)
 		if err != nil {
 			log.Printf("Ошибка получения манги для %s: %v", source.ParserName, err)
 			continue

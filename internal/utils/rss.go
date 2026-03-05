@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 func FindRSSLink(baseUrl, mangaName string) (string, error) {

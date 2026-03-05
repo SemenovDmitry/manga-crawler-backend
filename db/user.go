@@ -1,24 +1,24 @@
-package storage
+package db
 
 import (
 	"database/sql"
 	"fmt"
 	"time"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 // GetOrCreateUser получает или создаёт пользователя Telegram
 func GetOrCreateUser(id int64, username, firstName, lastName string) (*types.TelegramUser, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var u types.TelegramUser
 	var usernameNull, firstNameNull, lastNameNull sql.NullString
 
 	// Пробуем найти пользователя
-	err := db.QueryRow(`
-		SELECT id, username, first_name, last_name, is_active, created_at, updated_at 
-		FROM telegram_users 
+	err := database.QueryRow(`
+		SELECT id, username, first_name, last_name, is_active, created_at, updated_at
+		FROM telegram_users
 		WHERE id = $1
 	`, id).Scan(&u.ID, &usernameNull, &firstNameNull, &lastNameNull, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
 
@@ -35,8 +35,8 @@ func GetOrCreateUser(id int64, username, firstName, lastName string) (*types.Tel
 		}
 
 		// Обновляем данные пользователя
-		_, err = db.Exec(`
-			UPDATE telegram_users 
+		_, err = database.Exec(`
+			UPDATE telegram_users
 			SET username = $1, first_name = $2, last_name = $3, updated_at = $4
 			WHERE id = $5
 		`, nullString(username), nullString(firstName), nullString(lastName), time.Now(), id)
@@ -57,8 +57,8 @@ func GetOrCreateUser(id int64, username, firstName, lastName string) (*types.Tel
 	}
 
 	// Пользователь не найден, создаём
-	err = db.QueryRow(`
-		INSERT INTO telegram_users (id, username, first_name, last_name, is_active) 
+	err = database.QueryRow(`
+		INSERT INTO telegram_users (id, username, first_name, last_name, is_active)
 		VALUES ($1, $2, $3, $4, true)
 		RETURNING id, username, first_name, last_name, is_active, created_at, updated_at
 	`, id, nullString(username), nullString(firstName), nullString(lastName)).Scan(
@@ -84,14 +84,14 @@ func GetOrCreateUser(id int64, username, firstName, lastName string) (*types.Tel
 
 // GetUserByID возвращает пользователя по ID
 func GetUserByID(id int64) (*types.TelegramUser, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var u types.TelegramUser
 	var username, firstName, lastName sql.NullString
 
-	err := db.QueryRow(`
-		SELECT id, username, first_name, last_name, is_active, created_at, updated_at 
-		FROM telegram_users 
+	err := database.QueryRow(`
+		SELECT id, username, first_name, last_name, is_active, created_at, updated_at
+		FROM telegram_users
 		WHERE id = $1
 	`, id).Scan(&u.ID, &username, &firstName, &lastName, &u.IsActive, &u.CreatedAt, &u.UpdatedAt)
 

@@ -1,19 +1,19 @@
-package storage
+package db
 
 import (
 	"database/sql"
 	"fmt"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 // GetActiveSources возвращает все активные источники
 func GetActiveSources() ([]types.Source, error) {
-	db := GetDB()
+	database := GetDB()
 
-	rows, err := db.Query(`
-		SELECT id, parser_name, base_url, is_active, created_at, updated_at 
-		FROM sources 
+	rows, err := database.Query(`
+		SELECT id, parser_name, base_url, is_active, created_at, updated_at
+		FROM sources
 		WHERE is_active = true
 	`)
 	if err != nil {
@@ -36,12 +36,12 @@ func GetActiveSources() ([]types.Source, error) {
 
 // GetSourceByName возвращает источник по имени парсера
 func GetSourceByName(parserName types.SourceName) (*types.Source, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var s types.Source
-	err := db.QueryRow(`
-		SELECT id, parser_name, base_url, is_active, created_at, updated_at 
-		FROM sources 
+	err := database.QueryRow(`
+		SELECT id, parser_name, base_url, is_active, created_at, updated_at
+		FROM sources
 		WHERE parser_name = $1
 	`, parserName).Scan(&s.ID, &s.ParserName, &s.BaseURL, &s.IsActive, &s.CreatedAt, &s.UpdatedAt)
 
@@ -58,14 +58,14 @@ func GetSourceByName(parserName types.SourceName) (*types.Source, error) {
 // GetSourceByBaseURL возвращает источник по базовому URL
 // Поиск выполняется по точному совпадению или по вхождению хоста
 func GetSourceByBaseURL(baseURL string) (*types.Source, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var s types.Source
 
 	// Сначала пробуем точное совпадение
-	err := db.QueryRow(`
-		SELECT id, parser_name, base_url, is_active, created_at, updated_at 
-		FROM sources 
+	err := database.QueryRow(`
+		SELECT id, parser_name, base_url, is_active, created_at, updated_at
+		FROM sources
 		WHERE base_url = $1 AND is_active = true
 	`, baseURL).Scan(&s.ID, &s.ParserName, &s.BaseURL, &s.IsActive, &s.CreatedAt, &s.UpdatedAt)
 
@@ -78,9 +78,9 @@ func GetSourceByBaseURL(baseURL string) (*types.Source, error) {
 	}
 
 	// Если точного совпадения нет, ищем по LIKE (для случаев с/без https)
-	err = db.QueryRow(`
-		SELECT id, parser_name, base_url, is_active, created_at, updated_at 
-		FROM sources 
+	err = database.QueryRow(`
+		SELECT id, parser_name, base_url, is_active, created_at, updated_at
+		FROM sources
 		WHERE base_url LIKE '%' || $1 || '%' AND is_active = true
 		LIMIT 1
 	`, baseURL).Scan(&s.ID, &s.ParserName, &s.BaseURL, &s.IsActive, &s.CreatedAt, &s.UpdatedAt)

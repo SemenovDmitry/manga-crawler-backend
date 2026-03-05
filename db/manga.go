@@ -1,20 +1,20 @@
-package storage
+package db
 
 import (
 	"database/sql"
 	"fmt"
 	"time"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 // GetMangaBySourceID возвращает все манги для источника
 func GetMangaBySourceID(sourceID int) ([]types.Manga, error) {
-	db := GetDB()
+	database := GetDB()
 
-	rows, err := db.Query(`
-		SELECT id, source_id, url, title, last_chapter_url, last_chapter_title, last_check_at, created_at, updated_at 
-		FROM manga 
+	rows, err := database.Query(`
+		SELECT id, source_id, url, title, last_chapter_url, last_chapter_title, last_check_at, created_at, updated_at
+		FROM manga
 		WHERE source_id = $1
 	`, sourceID)
 	if err != nil {
@@ -51,15 +51,15 @@ func GetMangaBySourceID(sourceID int) ([]types.Manga, error) {
 
 // GetMangaByID возвращает мангу по ID
 func GetMangaByID(id int) (*types.Manga, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var m types.Manga
 	var lastChapterURL, lastChapterTitle sql.NullString
 	var lastCheckAt sql.NullTime
 
-	err := db.QueryRow(`
-		SELECT id, source_id, url, title, last_chapter_url, last_chapter_title, last_check_at, created_at, updated_at 
-		FROM manga 
+	err := database.QueryRow(`
+		SELECT id, source_id, url, title, last_chapter_url, last_chapter_title, last_check_at, created_at, updated_at
+		FROM manga
 		WHERE id = $1
 	`, id).Scan(&m.ID, &m.SourceID, &m.URL, &m.Title, &lastChapterURL, &lastChapterTitle, &lastCheckAt, &m.CreatedAt, &m.UpdatedAt)
 
@@ -85,15 +85,15 @@ func GetMangaByID(id int) (*types.Manga, error) {
 
 // GetMangaBySourceAndURL возвращает мангу по source_id и url
 func GetMangaBySourceAndURL(sourceID int, url string) (*types.Manga, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var m types.Manga
 	var lastChapterURL, lastChapterTitle sql.NullString
 	var lastCheckAt sql.NullTime
 
-	err := db.QueryRow(`
-		SELECT id, source_id, url, title, last_chapter_url, last_chapter_title, last_check_at, created_at, updated_at 
-		FROM manga 
+	err := database.QueryRow(`
+		SELECT id, source_id, url, title, last_chapter_url, last_chapter_title, last_check_at, created_at, updated_at
+		FROM manga
 		WHERE source_id = $1 AND url = $2
 	`, sourceID, url).Scan(&m.ID, &m.SourceID, &m.URL, &m.Title, &lastChapterURL, &lastChapterTitle, &lastCheckAt, &m.CreatedAt, &m.UpdatedAt)
 
@@ -119,10 +119,10 @@ func GetMangaBySourceAndURL(sourceID int, url string) (*types.Manga, error) {
 
 // UpdateMangaLastChapter обновляет информацию о последней главе
 func UpdateMangaLastChapter(mangaID int, chapterURL, chapterTitle string) error {
-	db := GetDB()
+	database := GetDB()
 
-	_, err := db.Exec(`
-		UPDATE manga 
+	_, err := database.Exec(`
+		UPDATE manga
 		SET last_chapter_url = $1, last_chapter_title = $2, last_check_at = $3, updated_at = $3
 		WHERE id = $4
 	`, chapterURL, chapterTitle, time.Now(), mangaID)
@@ -136,11 +136,11 @@ func UpdateMangaLastChapter(mangaID int, chapterURL, chapterTitle string) error 
 
 // UpdateMangaLastCheck обновляет время последней проверки
 func UpdateMangaLastCheck(mangaID int) error {
-	db := GetDB()
+	database := GetDB()
 
 	now := time.Now()
-	_, err := db.Exec(`
-		UPDATE manga 
+	_, err := database.Exec(`
+		UPDATE manga
 		SET last_check_at = $1, updated_at = $1
 		WHERE id = $2
 	`, now, mangaID)
@@ -154,11 +154,11 @@ func UpdateMangaLastCheck(mangaID int) error {
 
 // CreateManga создаёт новую мангу
 func CreateManga(sourceID int, url, title string) (*types.Manga, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var m types.Manga
-	err := db.QueryRow(`
-		INSERT INTO manga (source_id, url, title) 
+	err := database.QueryRow(`
+		INSERT INTO manga (source_id, url, title)
 		VALUES ($1, $2, $3)
 		RETURNING id, source_id, url, title, created_at, updated_at
 	`, sourceID, url, title).Scan(&m.ID, &m.SourceID, &m.URL, &m.Title, &m.CreatedAt, &m.UpdatedAt)
@@ -188,9 +188,9 @@ func GetMangaWithSubscribers(mangaID int) (*types.Manga, error) {
 
 // GetMangaSubscribers возвращает подписчиков манги
 func GetMangaSubscribers(mangaID int) ([]types.TelegramUser, error) {
-	db := GetDB()
+	database := GetDB()
 
-	rows, err := db.Query(`
+	rows, err := database.Query(`
 		SELECT tu.id, tu.username, tu.first_name, tu.last_name, tu.is_active, tu.created_at, tu.updated_at
 		FROM telegram_users tu
 		JOIN user_subscriptions us ON tu.id = us.user_id

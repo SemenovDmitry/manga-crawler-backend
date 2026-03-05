@@ -1,19 +1,19 @@
-package storage
+package db
 
 import (
 	"database/sql"
 	"fmt"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 // CreateSubscription создаёт подписку пользователя на мангу
 func CreateSubscription(userID int64, mangaID int) (*types.UserSubscription, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var sub types.UserSubscription
-	err := db.QueryRow(`
-		INSERT INTO user_subscriptions (user_id, manga_id, notify) 
+	err := database.QueryRow(`
+		INSERT INTO user_subscriptions (user_id, manga_id, notify)
 		VALUES ($1, $2, true)
 		ON CONFLICT (user_id, manga_id) DO UPDATE SET notify = true
 		RETURNING id, user_id, manga_id, notify, created_at
@@ -28,12 +28,12 @@ func CreateSubscription(userID int64, mangaID int) (*types.UserSubscription, err
 
 // GetSubscription возвращает подписку пользователя на мангу
 func GetSubscription(userID int64, mangaID int) (*types.UserSubscription, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var sub types.UserSubscription
-	err := db.QueryRow(`
-		SELECT id, user_id, manga_id, notify, created_at 
-		FROM user_subscriptions 
+	err := database.QueryRow(`
+		SELECT id, user_id, manga_id, notify, created_at
+		FROM user_subscriptions
 		WHERE user_id = $1 AND manga_id = $2
 	`, userID, mangaID).Scan(&sub.ID, &sub.TelegramUserID, &sub.MangaID, &sub.Notify, &sub.CreatedAt)
 
@@ -49,10 +49,10 @@ func GetSubscription(userID int64, mangaID int) (*types.UserSubscription, error)
 
 // DeleteSubscription удаляет подписку пользователя на мангу
 func DeleteSubscription(userID int64, mangaID int) error {
-	db := GetDB()
+	database := GetDB()
 
-	_, err := db.Exec(`
-		DELETE FROM user_subscriptions 
+	_, err := database.Exec(`
+		DELETE FROM user_subscriptions
 		WHERE user_id = $1 AND manga_id = $2
 	`, userID, mangaID)
 
@@ -72,9 +72,9 @@ type MangaWithSource struct {
 
 // GetUserSubscriptions возвращает все подписки пользователя с информацией об источнике
 func GetUserSubscriptions(userID int64) ([]MangaWithSource, error) {
-	db := GetDB()
+	database := GetDB()
 
-	rows, err := db.Query(`
+	rows, err := database.Query(`
 		SELECT m.id, m.source_id, m.url, m.title, m.last_chapter_url, m.last_chapter_title, m.last_check_at, m.created_at, m.updated_at,
 		       s.parser_name, s.base_url
 		FROM manga m
