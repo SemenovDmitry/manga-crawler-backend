@@ -5,8 +5,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/storage"
-	"github.com/SemenovDmitry/manga-crawler-backend/utils"
+	"github.com/SemenovDmitry/manga-crawler-backend/db"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/utils"
 )
 
 // HandleMessage обрабатывает входящее сообщение
@@ -19,7 +19,7 @@ func HandleMessage(bot *TelegramBot, msg *TgMessage) {
 	chatID := msg.Chat.ID
 
 	// Регистрируем/обновляем пользователя
-	_, err := storage.GetOrCreateUser(
+	_, err := db.GetOrCreateUser(
 		msg.From.ID,
 		msg.From.Username,
 		msg.From.FirstName,
@@ -91,7 +91,7 @@ func handleHelp(bot *TelegramBot, chatID int64) {
 
 // handleSources обработка команды /sources
 func handleSources(bot *TelegramBot, chatID int64) {
-	sources, err := storage.GetActiveSources()
+	sources, err := db.GetActiveSources()
 	if err != nil {
 		log.Printf("Ошибка получения источников: %v", err)
 		sendMessageToChat(bot, chatID, "❌ Ошибка получения списка источников")
@@ -120,7 +120,7 @@ func handleSources(bot *TelegramBot, chatID int64) {
 
 // handleList обработка команды /list
 func handleList(bot *TelegramBot, chatID int64, userID int64) {
-	mangaList, err := storage.GetUserSubscriptions(userID)
+	mangaList, err := db.GetUserSubscriptions(userID)
 	if err != nil {
 		log.Printf("Ошибка получения подписок: %v", err)
 		sendMessageToChat(bot, chatID, "❌ Ошибка получения списка манги")
@@ -136,7 +136,7 @@ func handleList(bot *TelegramBot, chatID int64, userID int64) {
 	sb.WriteString(fmt.Sprintf("📚 <b>Ваши манги (%d):</b>\n", len(mangaList)))
 
 	// Группируем манги по источнику
-	grouped := make(map[string][]storage.MangaWithSource)
+	grouped := make(map[string][]db.MangaWithSource)
 	var sourceOrder []string
 
 	for _, manga := range mangaList {
@@ -182,7 +182,7 @@ func handleAddManga(bot *TelegramBot, chatID int64, userID int64, rawURL string)
 	}
 
 	// Ищем источник по базовому URL
-	source, err := storage.GetSourceByBaseURL(parsed.BaseURL)
+	source, err := db.GetSourceByBaseURL(parsed.BaseURL)
 	if err != nil {
 		log.Printf("Ошибка поиска источника: %v", err)
 		sendMessageToChat(bot, chatID, "❌ Ошибка при поиске источника")
@@ -191,7 +191,7 @@ func handleAddManga(bot *TelegramBot, chatID int64, userID int64, rawURL string)
 
 	if source == nil {
 		// Пробуем поиск по хосту
-		source, err = storage.GetSourceByBaseURL(parsed.Host)
+		source, err = db.GetSourceByBaseURL(parsed.Host)
 		if err != nil {
 			log.Printf("Ошибка поиска источника по хосту: %v", err)
 			sendMessageToChat(bot, chatID, "❌ Ошибка при поиске источника")
@@ -205,7 +205,7 @@ func handleAddManga(bot *TelegramBot, chatID int64, userID int64, rawURL string)
 	}
 
 	// Проверяем, есть ли уже такая манга в БД
-	existingManga, err := storage.GetMangaBySourceAndURL(source.ID, parsed.MangaPath)
+	existingManga, err := db.GetMangaBySourceAndURL(source.ID, parsed.MangaPath)
 	if err != nil {
 		log.Printf("Ошибка проверки манги: %v", err)
 		sendMessageToChat(bot, chatID, "❌ Ошибка при проверке манги")
@@ -214,14 +214,14 @@ func handleAddManga(bot *TelegramBot, chatID int64, userID int64, rawURL string)
 
 	if existingManga != nil {
 		// Манга уже существует — проверяем подписку
-		subscription, err := storage.GetSubscription(userID, existingManga.ID)
+		subscription, err := db.GetSubscription(userID, existingManga.ID)
 		if err != nil {
 			log.Printf("Ошибка проверки подписки: %v", err)
 		}
 
 		if subscription != nil {
 			// Уже подписан
-			chapters, _ := storage.GetChaptersByMangaID(existingManga.ID)
+			chapters, _ := db.GetChaptersByMangaID(existingManga.ID)
 			var sb strings.Builder
 			sb.WriteString(fmt.Sprintf("ℹ️ Вы уже отслеживаете <b>%s</b>\n\n", escapeHTML(existingManga.Title)))
 
@@ -236,14 +236,14 @@ func handleAddManga(bot *TelegramBot, chatID int64, userID int64, rawURL string)
 		}
 
 		// Не подписан — создаём подписку
-		_, err = storage.CreateSubscription(userID, existingManga.ID)
+		_, err = db.CreateSubscription(userID, existingManga.ID)
 		if err != nil {
 			log.Printf("Ошибка создания подписки: %v", err)
 			sendMessageToChat(bot, chatID, "❌ Ошибка при создании подписки")
 			return
 		}
 
-		chapters, _ := storage.GetChaptersByMangaID(existingManga.ID)
+		chapters, _ := db.GetChaptersByMangaID(existingManga.ID)
 		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf("✅ Вы подписались на <b>%s</b>\n\n", escapeHTML(existingManga.Title)))
 
@@ -290,7 +290,7 @@ func handleAddManga(bot *TelegramBot, chatID int64, userID int64, rawURL string)
 	}
 
 	// Создаём мангу в БД
-	newManga, err := storage.CreateManga(source.ID, parsed.MangaPath, transformedFeed.Title)
+	newManga, err := db.CreateManga(source.ID, parsed.MangaPath, transformedFeed.Title)
 	if err != nil {
 		log.Printf("Ошибка создания манги: %v", err)
 		sendMessageToChat(bot, chatID, "❌ Ошибка при сохранении манги")
@@ -298,7 +298,7 @@ func handleAddManga(bot *TelegramBot, chatID int64, userID int64, rawURL string)
 	}
 
 	// Сохраняем главы
-	_, err = storage.CreateChapters(newManga.ID, transformedFeed.Chapters)
+	_, err = db.CreateChapters(newManga.ID, transformedFeed.Chapters)
 	if err != nil {
 		log.Printf("Ошибка сохранения глав: %v", err)
 	}
@@ -306,11 +306,11 @@ func handleAddManga(bot *TelegramBot, chatID int64, userID int64, rawURL string)
 	// Обновляем последнюю главу
 	if len(transformedFeed.Chapters) > 0 {
 		lastChapter := transformedFeed.Chapters[0]
-		storage.UpdateMangaLastChapter(newManga.ID, lastChapter.URL, lastChapter.Title)
+		db.UpdateMangaLastChapter(newManga.ID, lastChapter.URL, lastChapter.Title)
 	}
 
 	// Создаём подписку
-	_, err = storage.CreateSubscription(userID, newManga.ID)
+	_, err = db.CreateSubscription(userID, newManga.ID)
 	if err != nil {
 		log.Printf("Ошибка создания подписки: %v", err)
 		sendMessageToChat(bot, chatID, "❌ Ошибка при создании подписки")

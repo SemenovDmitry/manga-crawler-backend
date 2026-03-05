@@ -1,4 +1,4 @@
-package storage
+package db
 
 import (
 	"database/sql"
@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	db   *sql.DB
+	conn *sql.DB
 	once sync.Once
 )
 
@@ -20,12 +20,12 @@ var (
 func GetDB() *sql.DB {
 	once.Do(func() {
 		var err error
-		db, err = initDB()
+		conn, err = initDB()
 		if err != nil {
 			log.Fatalf("Ошибка подключения к БД: %v", err)
 		}
 	})
-	return db
+	return conn
 }
 
 // initDB инициализирует подключение к PostgreSQL
@@ -44,24 +44,24 @@ func initDB() (*sql.DB, error) {
 		host, port, user, password, dbname,
 	)
 
-	conn, err := sql.Open("postgres", connStr)
+	database, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка открытия соединения: %w", err)
 	}
 
 	// Проверяем соединение
-	if err := conn.Ping(); err != nil {
+	if err := database.Ping(); err != nil {
 		return nil, fmt.Errorf("ошибка пинга БД: %w", err)
 	}
 
 	log.Println("Подключение к базе данных успешно установлено")
-	return conn, nil
+	return database, nil
 }
 
 // CloseDB закрывает соединение с БД
 func CloseDB() error {
-	if db != nil {
-		return db.Close()
+	if conn != nil {
+		return conn.Close()
 	}
 	return nil
 }

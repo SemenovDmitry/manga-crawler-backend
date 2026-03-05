@@ -1,23 +1,23 @@
-package storage
+package db
 
 import (
 	"fmt"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 // GetChaptersByMangaID возвращает все главы манги
 func GetChaptersByMangaID(mangaID int) ([]types.Chapter, error) {
-	db := GetDB()
+	database := GetDB()
 
 	query := `
-		SELECT id, manga_id, url, title, discovered_at 
-		FROM chapters 
+		SELECT id, manga_id, url, title, discovered_at
+		FROM chapters
 		WHERE manga_id = $1
 		ORDER BY discovered_at DESC
 	`
 
-	rows, err := db.Query(query, mangaID)
+	rows, err := database.Query(query, mangaID)
 
 	if err != nil {
 		return nil, fmt.Errorf("ошибка запроса глав: %w", err)
@@ -40,10 +40,10 @@ func GetChaptersByMangaID(mangaID int) ([]types.Chapter, error) {
 
 // CreateChapter создаёт новую главу
 func CreateChapter(mangaID int, url, title string) (*types.Chapter, error) {
-	db := GetDB()
+	database := GetDB()
 
 	query := `
-		INSERT INTO chapters (manga_id, url, title) 
+		INSERT INTO chapters (manga_id, url, title)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (manga_id, url) DO NOTHING
 		RETURNING id, manga_id, url, title, discovered_at
@@ -51,7 +51,7 @@ func CreateChapter(mangaID int, url, title string) (*types.Chapter, error) {
 
 	var c types.Chapter
 
-	err := db.QueryRow(query, mangaID, url, title).Scan(&c.ID, &c.MangaID, &c.URL, &c.Title, &c.DiscoveredAt)
+	err := database.QueryRow(query, mangaID, url, title).Scan(&c.ID, &c.MangaID, &c.URL, &c.Title, &c.DiscoveredAt)
 
 	if err != nil {
 		// Если ON CONFLICT сработал, глава уже существует — не ошибка
@@ -80,10 +80,10 @@ func CreateChapters(mangaID int, chapters []types.Chapter) ([]types.Chapter, err
 
 // ChapterExists проверяет существование главы
 func ChapterExists(mangaID int, url string) (bool, error) {
-	db := GetDB()
+	database := GetDB()
 
 	var exists bool
-	err := db.QueryRow(`
+	err := database.QueryRow(`
 		SELECT EXISTS(SELECT 1 FROM chapters WHERE manga_id = $1 AND url = $2)
 	`, mangaID, url).Scan(&exists)
 

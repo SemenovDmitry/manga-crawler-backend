@@ -1,4 +1,4 @@
-package storage
+package db
 
 import (
 	"embed"
@@ -12,7 +12,7 @@ var embedMigrations embed.FS
 
 // RunMigrations запускает миграции базы данных
 func RunMigrations() error {
-	db := GetDB()
+	database := GetDB()
 
 	goose.SetBaseFS(embedMigrations)
 
@@ -20,7 +20,7 @@ func RunMigrations() error {
 		return err
 	}
 
-	if err := goose.Up(db, "migrations"); err != nil {
+	if err := goose.Up(database, "migrations"); err != nil {
 		return err
 	}
 

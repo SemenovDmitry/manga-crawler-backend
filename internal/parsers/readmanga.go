@@ -5,10 +5,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/storage"
-	"github.com/SemenovDmitry/manga-crawler-backend/telegram"
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
-	"github.com/SemenovDmitry/manga-crawler-backend/utils"
+	"github.com/SemenovDmitry/manga-crawler-backend/db"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/telegram"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/utils"
 )
 
 // ParseSource парсит мангу для конкретного источника.
@@ -42,7 +42,7 @@ func ReadmangaParser(telegramBot *telegram.TelegramBot, source types.Source, man
 
 		if len(feed.Items) == 0 {
 			log.Printf("Нет глав для %s", manga.Title)
-			storage.UpdateMangaLastCheck(manga.ID)
+			db.UpdateMangaLastCheck(manga.ID)
 			continue
 		}
 
@@ -54,7 +54,7 @@ func ReadmangaParser(telegramBot *telegram.TelegramBot, source types.Source, man
 		}
 
 		// Сохраняем новые главы в БД и получаем только реально новые
-		newChapters, err := storage.CreateChapters(manga.ID, transformedFeed.Chapters)
+		newChapters, err := db.CreateChapters(manga.ID, transformedFeed.Chapters)
 		if err != nil {
 			log.Printf("Ошибка сохранения глав для %s: %v", manga.Title, err)
 			continue
@@ -66,12 +66,12 @@ func ReadmangaParser(telegramBot *telegram.TelegramBot, source types.Source, man
 		if len(newChapters) > 0 {
 			// Обновляем информацию о последней главе
 			lastChapter := newChapters[0]
-			if err := storage.UpdateMangaLastChapter(manga.ID, lastChapter.URL, lastChapter.Title); err != nil {
+			if err := db.UpdateMangaLastChapter(manga.ID, lastChapter.URL, lastChapter.Title); err != nil {
 				log.Printf("Ошибка обновления последней главы: %v", err)
 			}
 
 			// Получаем подписчиков манги
-			subscribers, err := storage.GetMangaSubscribers(manga.ID)
+			subscribers, err := db.GetMangaSubscribers(manga.ID)
 			if err != nil {
 				log.Printf("Ошибка получения подписчиков: %v", err)
 			}
@@ -82,7 +82,7 @@ func ReadmangaParser(telegramBot *telegram.TelegramBot, source types.Source, man
 			}
 		} else {
 			// Просто обновляем время последней проверки
-			storage.UpdateMangaLastCheck(manga.ID)
+			db.UpdateMangaLastCheck(manga.ID)
 		}
 
 		// Ждём 4 секунды перед следующей мангой (чтобы не получить бан)

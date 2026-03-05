@@ -3,8 +3,8 @@ package parsers
 import (
 	"fmt"
 
-	"github.com/SemenovDmitry/manga-crawler-backend/telegram"
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/telegram"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 // ParserFunc тип функции парсера

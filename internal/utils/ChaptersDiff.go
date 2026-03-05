@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/SemenovDmitry/manga-crawler-backend/types"
+	"github.com/SemenovDmitry/manga-crawler-backend/internal/types"
 )
 
 func ChaptersDiff(a []types.Chapter, b []types.Chapter) []types.Chapter {
